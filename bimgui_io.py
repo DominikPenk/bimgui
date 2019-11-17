@@ -1,3 +1,7 @@
+"""
+This module implements the Keyobard and Mouse input handling in the class 'BImGuiIO'
+"""
+
 class BImGuiIO:
     """
     Class to handle keyboard and mous input

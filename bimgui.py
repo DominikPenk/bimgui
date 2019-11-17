@@ -55,6 +55,7 @@ def bimgui_draw(space, **kwargs):
         index = len(callback_data) - 1
         @functools.wraps(base)
         def wrapper(*args):
+            #pylint: disable=invalid-name
             io = args[1]
             lid = args[2]
             io.set_current_listener(lid)
@@ -134,7 +135,7 @@ class BImGUIOperator(bpy.types.Operator):
         self._last_region = (self._next_position, size)
         self._next_position = (
             self._current_line_start,
-            self._next_position[1] - size[1] - self.style['spacing']) 
+            self._next_position[1] - size[1] - self.style['spacing'])
         self._current_bottom_right = (
             max(self._last_region[0][0] + size[0], self._current_bottom_right[0]),
             min(self._last_region[0][1] - size[1], self._current_bottom_right[1]))
@@ -227,13 +228,11 @@ class BImGUIOperator(bpy.types.Operator):
         """
         if not region:
             region = self._last_region
-        if not region:
-            return False
-        else:
-            mouse_pos = self.get_mouse_pos()
-            rx = mouse_pos[0] - region[0][0]
-            ry = region[0][1] - mouse_pos[1] 
-            return rx >= 0 and rx <= region[1][0] and ry >= 0 and ry <= region[1][1]
+
+        mouse_pos = self.get_mouse_pos()
+        r_x = mouse_pos[0] - region[0][0]
+        r_y = region[0][1] - mouse_pos[1]
+        return 0 <= r_x <= region[1][0] and 0 <= r_y < region[1][1]
 
     def get_mouse_pos(self):
         """
@@ -339,10 +338,10 @@ class BImGUIOperator(bpy.types.Operator):
             text,
             position,
             **self.style
-        )        
+        )
         self._newline(size)
 
-    def progress(self, text, value, show_progress = True):
+    def progress(self, text, value, show_progress=True):
         """
         Draws a progress bar
         """
@@ -368,7 +367,7 @@ class BImGUIOperator(bpy.types.Operator):
             self.style["button"])
         self._newline(size)
 
-    def same_line(self, col= None):
+    def same_line(self, col=None):
         """
         The next element will be drawn at on the same line as the previous one
         """

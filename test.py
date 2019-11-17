@@ -1,7 +1,13 @@
-import bpy
+"""
+This module implements a simple text UI.
+"""
+
 from . bimgui import BImGUIOperator, bimgui_draw
 
 class TestUIOperator(BImGUIOperator):
+    """
+    A simple test for the BImGUIOperator
+    """
     bl_idname = "wm.test_ui"
     bl_label = "Test BImGUI"
 
@@ -9,9 +15,7 @@ class TestUIOperator(BImGUIOperator):
         super().__init__()
         self._bool = False
 
-    @bimgui_draw('PROPERTIES')
     @bimgui_draw('VIEW3D')
-    @bimgui_draw('OUTLINER')
     def draw_view3d(self):
         """
         Draw a very simple test UI

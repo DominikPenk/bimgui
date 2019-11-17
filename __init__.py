@@ -10,6 +10,8 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
+import bpy
+from .test import TestUIOperator
 
 bl_info = {
     "name" : "BImGUI",
@@ -21,12 +23,6 @@ bl_info = {
     "warning" : "",
     "category" : "Generic"
 }
-
-import bpy
-
-from .test import TestUIOperator
-
-classes = (TestUIOperator)
 
 def register():
     bpy.utils.register_class(TestUIOperator)

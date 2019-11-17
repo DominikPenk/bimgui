@@ -1,3 +1,7 @@
+"""
+This module implements the DrawList class.
+The class can be used to create multiple simple shapes which are drawn with view draw calls
+"""
 import bgl
 import bpy
 import blf
@@ -5,13 +9,16 @@ import gpu
 from gpu_extras.batch import batch_for_shader
 
 class DrawList:
+    """
+    Implements some low level primitives for rendering
+    """
     def __init__(self):
         self._geometry = dict()
         self._text = dict()
 
         self._current_channel = 0
 
-    def clear(self): 
+    def clear(self):
         """
         Clears the drawlist
         """
@@ -35,7 +42,7 @@ class DrawList:
                 batch = batch_for_shader(
                     shader, 'TRIS',
                     {
-                        "pos": self._geometry[layer]["pos"], 
+                        "pos": self._geometry[layer]["pos"],
                         "color": self._geometry[layer]["color"]
                     },
                     indices=self._geometry[layer]["indices"])
@@ -47,7 +54,7 @@ class DrawList:
                 text_size = blf.dimensions(0, text_data["text"])
                 blf.position(
                     0,
-                    text_data["position"][0], 
+                    text_data["position"][0],
                     text_data["position"][1] - text_size[1],
                     0)
                 blf.color(0, *text_data["color"])
@@ -56,6 +63,10 @@ class DrawList:
 
     @property
     def channel(self):
+        """
+        Set the current channel to add geometry
+        Channels are drawn in ascending order
+        """
         return self._current_channel
 
     @channel.setter
@@ -96,7 +107,7 @@ class DrawList:
         offset = len(self.geometry["pos"])
         indices = (
             (offset + 0, offset + 1, offset + 2),
-            (offset + 2, offset + 1, offset + 3)) 
+            (offset + 2, offset + 1, offset + 3))
         colors = [color, color, color, color]
         self.geometry["pos"] += vertices
         self.geometry["indices"] += indices
