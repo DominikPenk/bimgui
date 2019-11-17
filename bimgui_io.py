@@ -35,7 +35,7 @@ class BImGui_IO:
             'LEFT_CTRL', 'LEFT_ALT', 'RIGHT_ALT', 'RIGHT_CTRL', 'RIGHT_SHIFT', 'OSKEY', 'GRLESS',
             'LINE_FEED', 'WINDOW_DEACTIVATE' ]
 
-    def _handle_input(self, event):
+    def handle_input(self, event):
         self.ctrl = event.ctrl
         self.alt = event.alt
         self.shift = event.shift
