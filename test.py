@@ -1,20 +1,21 @@
 import bpy
-from . bimgui import BImGUIOperator
+from . bimgui import BImGUIOperator, bimgui_draw
 
 class TestUIOperator(BImGUIOperator):
     bl_idname = "wm.test_ui"
     bl_label = "Test BImGUI"
 
-    ui_windows = [
-        ('VIEW3D', 'draw_view3d'),
-        # ('PROPERTIES', 'draw_view3d')
-        ]
-
     def __init__(self):
         super().__init__()
         self._bool = False
 
+    @bimgui_draw('PROPERTIES')
+    @bimgui_draw('VIEW3D')
+    @bimgui_draw('OUTLINER')
     def draw_view3d(self):
+        """
+        Draw a very simple test UI
+        """
         self.begin_ui((100, 100), True)
 
         self.label("Label 1")
@@ -31,6 +32,6 @@ class TestUIOperator(BImGUIOperator):
         self.end_ui()
 
     def run(self, context, event):
-        self._should_close = self.io.is_key_down('ESC')
+        self._should_close = self.io.just_released('ESC')
         if self._should_close:
             print("Stop")

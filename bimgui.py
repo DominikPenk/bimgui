@@ -1,29 +1,89 @@
+"""
+This module holds the base class for BImgui operators
+"""
+import functools
+
 import bpy
 import blf
 
-from . bimgui_io import BImGui_IO as IO
+from . bimgui_io import BImGuiIO as IO
 from . drawlist import DrawList
+
+def _parse_space_string(string):
+    if string == 'VIEW3D':
+        return bpy.types.SpaceView3D
+    if string == 'PROPERTIES':
+        return bpy.types.SpaceProperties
+    if string == 'CLIP_EDITOR':
+        return bpy.types.SpaceClipEditor
+    if string == 'OUTLINER':
+        return bpy.types.SpaceOutliner
+    else:
+        return None
+
+def _load_style():
+    # Style variables
+    theme = bpy.context.preferences.themes['Default']
+    return {
+        "spacing": 5,
+        "padding": 5,
+        "font_size": 11,
+        "dpi": bpy.context.preferences.system.dpi,
+        "texcolor": tuple(theme.user_interface.wcol_toolbar_item.text),
+        "texcolor_sel": tuple(theme.user_interface.wcol_toolbar_item.text_sel),
+        "button": tuple(theme.user_interface.wcol_toolbar_item.inner),
+        "button_hovered": tuple(theme.user_interface.wcol_toolbar_item.inner_sel),
+        "checkbox_center": (*tuple(theme.user_interface.wcol_toolbar_item.text), 1.0),
+        "progress": tuple(theme.user_interface.wcol_progress.item),
+        "window_background_color": (0, 0, 0, 0.5)
+    }
+
+def bimgui_draw(space, **kwargs):
+    """
+    You need to decorate the draw callbacks with this function
+    It will take care of reading data
+    """
+    def decorator(func):
+        base = func.__dict__.setdefault('bimgui_unwrapped', func)
+        callback_data = func.__dict__.setdefault('bimgui', [])
+        callback_data.append({
+            'space': _parse_space_string(space),
+            'region': kwargs.get('region', 'WINDOW'),
+            'stage': kwargs.get('stage', 'POST_PIXEL'),
+            'index': len(callback_data)
+        })
+        index = len(callback_data) - 1
+        @functools.wraps(base)
+        def wrapper(*args):
+            io = args[1]
+            lid = args[2]
+            io.set_current_listener(lid)
+            base(args[0])
+            io.signal_processed(lid)
+        callback_data[index]['drawfn'] = wrapper
+        return wrapper
+    return decorator
 
 class BImGUIOperator(bpy.types.Operator):
     """
     This base class is an abstract modal operator that you can use to create a UI
     Implement the init function to to initialization work
-    Implement the draw function to draw elements into a view
     """
-    ui_windows = []
 
     def __init__(self):
         self._should_close = False
+        #pylint: disable=invalid-name
         self.io = IO()
 
         # Check which hooks are required
         self._draw_handles = []
-        for window in self.ui_windows:
-            self._draw_handles.append(self._parse_window(window))
+        # Add draw handlers
+        for window in self.__get_draw_functions():
+            self._draw_handles += window.__dict__['bimgui']
         self._draw_event = None
 
         self.draw_list = DrawList()
-        self.style = self._load_style()
+        self.style = _load_style()
 
         # "Forward" decleration
         self._last_region = None
@@ -33,47 +93,21 @@ class BImGUIOperator(bpy.types.Operator):
         self._current_line_start = 0
         self._current_window_has_background = False
 
-    def _parse_space_string(self, string):
-        if string == 'VIEW3D':
-            return bpy.types.SpaceView3D
-        if string == 'PROPERTIES':
-            return bpy.types.SpaceProperties
-        if string == 'CLIP_EDITOR':
-            return bpy.types.SpaceClipEditor
-        if string == 'OUTLINER':
-            return bpy.types.SpaceOutliner
-
-    def _parse_window(self, window):
-        if isinstance(window, (list, tuple)):
-            # if the length is 2 we expect a string and a callback
-            if len(window) == 2:
-                return {
-                    "space": self._parse_space_string(window[0]),
-                    "region": 'WINDOW',
-                    "stage": 'POST_PIXEL',
-                    "handle": None,
-                    "drawfn": getattr(self, window[1])
-                }
-            elif len(window) == 3:
-                return {
-                    "space": self._parse_space_string(window[0]),
-                    "region": 'WINDOW',
-                    "stage": window[2],
-                    "handle": None,
-                    "drawfn": getattr(self, window[1])
-                }
-            else:
-                raise "Invalid window {}".format(window)
-        else:
-            raise "Invalid window {}".format(window) 
+    def __get_draw_functions(self):
+        callables = [getattr(self, method) for method in dir(self)
+                     if callable(getattr(self, method))]
+        return [method for method in callables if 'bimgui' in dir(method)]
 
     def _register_handles(self, context):
         for window in self._draw_handles:
+            # Register this window to io
+            window['listener'] = self.io.register_listener()
             window['handle'] = window['space'].draw_handler_add(
                 window['drawfn'],
-                (),
+                (self, self.io, window['listener']),
                 window['region'],
                 window['stage'])
+
         # Force initial redraw
         for window in bpy.context.window_manager.windows:
             for area in window.screen.areas:
@@ -84,32 +118,17 @@ class BImGUIOperator(bpy.types.Operator):
     def _unregister_handlers(self, context):
         context.window_manager.event_timer_remove(self._draw_event)
         _draw_event = None
-        for h in self._draw_handles:
-            h["space"].draw_handler_remove(
-                h["handle"],
-                h['region'])
-            h['handle'] = None
+        for handle in self._draw_handles:
+            handle["space"].draw_handler_remove(
+                handle["handle"],
+                handle['region'])
+            self.io.unregister_listener(handle['listener'])
+            handle['handle'] = None
+            handle['listener'] = None
         # Redraw all windows
         for window in bpy.context.window_manager.windows:
             for area in window.screen.areas:
                 area.tag_redraw()
-
-    def _load_style(self):
-        # Style variables
-        theme = bpy.context.preferences.themes['Default']
-        return {
-            "spacing": 5,
-            "padding": 5,
-            "font_size": 11,
-            "dpi": bpy.context.preferences.system.dpi,
-            "texcolor": tuple(theme.user_interface.wcol_toolbar_item.text),
-            "texcolor_sel": tuple(theme.user_interface.wcol_toolbar_item.text_sel),
-            "button": tuple(theme.user_interface.wcol_toolbar_item.inner),
-            "button_hovered": tuple(theme.user_interface.wcol_toolbar_item.inner_sel),
-            "checkbox_center": (*tuple(theme.user_interface.wcol_toolbar_item.text), 1.0),
-            "progress": tuple(theme.user_interface.wcol_progress.item),
-            "window_background_color": (0, 0, 0, 0.5)
-        }
 
     def _newline(self, size):
         self._last_region = (self._next_position, size)
@@ -146,8 +165,6 @@ class BImGUIOperator(bpy.types.Operator):
         """
         self.io.handle_input(event)
         self.run(context, event)
-
-        print(event.type)
 
         # Enforce redraw
         if event.type.startswith("TIMER"):
@@ -196,8 +213,8 @@ class BImGUIOperator(bpy.types.Operator):
             )
             self.draw_list.channel = -1
             self.draw_list.add_filled_rectangle(
-                position, 
-                size, 
+                position,
+                size,
                 self.style["window_background_color"])
 
         self.draw_list.draw()
@@ -296,7 +313,7 @@ class BImGUIOperator(bpy.types.Operator):
             **self.style
         )
         self._newline(size)
-        return not value if self.is_hovered() and self.io.mouse_clicked['LEFTMOUSE'] else value
+        return not value if is_hovered and self.io.mouse_clicked['LEFTMOUSE'] else value
 
     def label(self, text, with_background=False):
         """

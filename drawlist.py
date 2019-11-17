@@ -25,26 +25,28 @@ class DrawList:
         """
         shader = gpu.shader.from_builtin('2D_FLAT_COLOR')
 
-        layers = sorted(self._geometry.keys())
+        layers = set(self._geometry.keys()).union(set(self._text.keys()))
+        layers = sorted(layers)
 
         # Draw all elements
         bgl.glEnable(bgl.GL_BLEND)
         for layer in layers:
-            batch = batch_for_shader(
-                shader, 'TRIS',
-                {
-                    "pos": self._geometry[layer]["pos"], 
-                    "color": self._geometry[layer]["color"]
-                },
-                indices=self._geometry[layer]["indices"])
-            batch.draw(shader)
+            if layer in self._geometry:
+                batch = batch_for_shader(
+                    shader, 'TRIS',
+                    {
+                        "pos": self._geometry[layer]["pos"], 
+                        "color": self._geometry[layer]["color"]
+                    },
+                    indices=self._geometry[layer]["indices"])
+                batch.draw(shader)
             # Draw text
             for text_data in self._text.get(layer, []):
                 blf.size(0, text_data["font_size"], text_data["dpi"])
                 # Get text size
                 text_size = blf.dimensions(0, text_data["text"])
                 blf.position(
-                    0, 
+                    0,
                     text_data["position"][0], 
                     text_data["position"][1] - text_size[1],
                     0)
