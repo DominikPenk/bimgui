@@ -68,8 +68,6 @@ class BImGuiIO:
                 # Signal all listeners
                 for _, listener_state in self.__listener_states.items():
                     listener_state[event.type] = True
-            else:
-                print(event.type, event.value)
 
     def is_key_down(self, key):
         """
